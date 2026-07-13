@@ -29,6 +29,13 @@
   .submit-btn { background: #d98c1f; color: #fff; font-weight: bold; }
   .hint { font-size: 11px; color: #888; margin-top: 2px; }
   #status { font-size: 14px; margin-top: 10px; white-space: pre-wrap; }
+  .total-bar {
+    position: sticky; bottom: 0; display: flex; justify-content: space-between; align-items: center;
+    background: #fff; border: 1px solid #d98c1f; border-radius: 8px; padding: 10px 14px; margin: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .total-bar .label { font-size: 13px; color: #666; }
+  .total-bar .amount { font-size: 22px; font-weight: bold; color: #d98c1f; }
 </style>
 </head>
 <body>
@@ -78,6 +85,11 @@
       <textarea name="note" rows="3" placeholder="任意"></textarea>
     </fieldset>
 
+    <div class="total-bar">
+      <span class="label">合計金額(税込)</span>
+      <span class="amount" id="liveTotal">¥0</span>
+    </div>
+
     <button type="submit" class="submit-btn">作成してDriveに保存</button>
     <div id="status"></div>
   </form>
@@ -111,6 +123,16 @@
 
     const today = new Date().toISOString().slice(0, 10);
 
+    const liveTotalEl = document.getElementById("liveTotal");
+    function updateLiveTotal() {
+      let total = 0;
+      itemsContainer.querySelectorAll(".item-row").forEach((row) => {
+        const num = (name) => Number(row.querySelector(`input[name$="[${name}]"]`)?.value) || 0;
+        total += num("fare") + num("equipment") + num("care") + num("etc") - num("discount");
+      });
+      liveTotalEl.textContent = "¥" + total.toLocaleString("ja-JP");
+    }
+
     function addRow() {
       const html = template.innerHTML.replaceAll("__IDX__", String(idx));
       const wrapper = document.createElement("div");
@@ -118,13 +140,20 @@
       const row = wrapper.firstElementChild;
       row.querySelector(".remove-row").addEventListener("click", () => {
         if (itemsContainer.children.length > 1) row.remove();
+        updateLiveTotal();
       });
       row.querySelector('input[type="date"]').value = today;
+      row.querySelectorAll('input[type="number"]').forEach((input) => {
+        input.addEventListener("input", updateLiveTotal);
+      });
       itemsContainer.appendChild(row);
       idx++;
     }
 
-    document.getElementById("add-row").addEventListener("click", addRow);
+    document.getElementById("add-row").addEventListener("click", () => {
+      addRow();
+      updateLiveTotal();
+    });
     addRow();
 
     document.getElementById("issueDate").value = today;
