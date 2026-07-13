@@ -1,0 +1,22 @@
+{
+  "name": "kaede-invoice-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "楓Care taxi 請求書・見積書 作成フォーム(iPhone対応・Drive自動保存)",
+  "type": "commonjs",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@sparticuz/chromium": "^131.0.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-basic-auth": "^1.2.1",
+    "googleapis": "^173.0.0",
+    "puppeteer-core": "^24.0.0"
+  }
+}

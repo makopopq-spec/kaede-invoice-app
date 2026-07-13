@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>楓Care taxi 請求書・見積書作成</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Yu Gothic", sans-serif; margin: 0; padding: 16px 16px 80px; background: #f6f6f4; color: #222; }
+  h1 { font-size: 18px; margin: 4px 0 16px; }
+  form { display: flex; flex-direction: column; gap: 14px; }
+  fieldset { border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; background: #fff; }
+  legend { font-size: 13px; color: #666; padding: 0 4px; }
+  label { display: block; font-size: 13px; color: #444; margin: 8px 0 4px; }
+  input[type=text], input[type=date], input[type=number], textarea {
+    width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px;
+  }
+  .type-toggle { display: flex; gap: 8px; }
+  .type-toggle label { flex: 1; text-align: center; border: 1px solid #ccc; border-radius: 6px; padding: 10px; margin: 0; background: #fafafa; }
+  .type-toggle input { display: none; }
+  .type-toggle input:checked + span { font-weight: bold; }
+  .type-toggle label:has(input:checked) { background: #ffe9c7; border-color: #d98c1f; }
+  .item-row { border: 1px dashed #ccc; border-radius: 8px; padding: 10px; margin-bottom: 10px; position: relative; }
+  .item-row .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .remove-row { position: absolute; top: 6px; right: 6px; background: #d9534f; color: #fff; border: none; border-radius: 50%; width: 26px; height: 26px; font-size: 14px; }
+  .add-row, .submit-btn { padding: 12px; font-size: 15px; border-radius: 8px; border: none; }
+  .add-row { background: #eee; color: #333; }
+  .submit-btn { background: #d98c1f; color: #fff; font-weight: bold; }
+  .hint { font-size: 11px; color: #888; margin-top: 2px; }
+  #status { font-size: 14px; margin-top: 10px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+  <h1>楓Care taxi 請求書・見積書作成</h1>
+  <form id="invoice-form">
+    <fieldset>
+      <legend>種類</legend>
+      <div class="type-toggle">
+        <label><input type="radio" name="type" value="invoice" checked><span>請求書</span></label>
+        <label><input type="radio" name="type" value="quote"><span>見積書</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>宛先</legend>
+      <label>お客様名(様は自動で付きます)</label>
+      <input type="text" name="customerName" required placeholder="例: タカハシ マサコ">
+      <label>ご住所(任意)</label>
+      <input type="text" name="customerAddress" placeholder="任意">
+    </fieldset>
+
+    <fieldset>
+      <legend>日付</legend>
+      <label>発行日</label>
+      <input type="date" name="issueDate" id="issueDate" required>
+      <label id="dueDateLabel">お支払期限(任意)</label>
+      <input type="date" name="dueDate" id="dueDate">
+    </fieldset>
+
+    <fieldset>
+      <legend>明細</legend>
+      <div id="items"></div>
+      <button type="button" class="add-row" id="add-row">＋ 明細を追加</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>備考(任意)</legend>
+      <textarea name="note" rows="3" placeholder="任意"></textarea>
+    </fieldset>
+
+    <button type="submit" class="submit-btn">作成してDriveに保存</button>
+    <div id="status"></div>
+  </form>
+
+  <template id="item-template">
+    <div class="item-row">
+      <button type="button" class="remove-row">×</button>
+      <label>ご利用日時</label>
+      <input type="text" name="items[__IDX__][date]" placeholder="例: 2026-07-10 9:00〜10:30">
+      <label>詳細</label>
+      <input type="text" name="items[__IDX__][detail]" placeholder="例: 自宅→〇〇病院 通院送迎">
+      <div class="grid2">
+        <div><label>運賃</label><input type="number" name="items[__IDX__][fare]" inputmode="numeric"></div>
+        <div><label>機材料</label><input type="number" name="items[__IDX__][equipment]" inputmode="numeric"></div>
+        <div><label>介助料</label><input type="number" name="items[__IDX__][care]" inputmode="numeric"></div>
+        <div><label>ETC料金</label><input type="number" name="items[__IDX__][etc]" inputmode="numeric"></div>
+      </div>
+      <label>割引額(あれば)</label>
+      <input type="number" name="items[__IDX__][discount]" inputmode="numeric">
+    </div>
+  </template>
+
+  <script>
+    const itemsContainer = document.getElementById("items");
+    const template = document.getElementById("item-template");
+    let idx = 0;
+
+    function addRow() {
+      const html = template.innerHTML.replaceAll("__IDX__", String(idx));
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = html;
+      const row = wrapper.firstElementChild;
+      row.querySelector(".remove-row").addEventListener("click", () => {
+        if (itemsContainer.children.length > 1) row.remove();
+      });
+      itemsContainer.appendChild(row);
+      idx++;
+    }
+
+    document.getElementById("add-row").addEventListener("click", addRow);
+    addRow();
+
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById("issueDate").value = today;
+
+    const typeRadios = document.querySelectorAll('input[name="type"]');
+    const dueDateLabel = document.getElementById("dueDateLabel");
+    function syncLabel() {
+      const type = document.querySelector('input[name="type"]:checked').value;
+      dueDateLabel.textContent = type === "invoice" ? "お支払期限(任意)" : "見積有効期限(任意)";
+    }
+    typeRadios.forEach((r) => r.addEventListener("change", syncLabel));
+    syncLabel();
+
+    document.getElementById("invoice-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const statusEl = document.getElementById("status");
+      statusEl.textContent = "作成中です...(最大1分ほどかかる場合があります)";
+      const formData = new FormData(e.target);
+      const params = new URLSearchParams();
+      for (const [k, v] of formData.entries()) params.append(k, v);
+
+      try {
+        const res = await fetch("/generate", { method: "POST", body: params });
+        const data = await res.json();
+        if (!data.ok) {
+          statusEl.textContent = "エラー: " + data.error;
+          return;
+        }
+        statusEl.innerHTML =
+          `作成しました(書類番号: ${data.docNumber})<br>` +
+          `<a href="${data.pdfUrl}" target="_blank">PDFを開く/ダウンロード</a><br>` +
+          `<a href="${data.driveLink}" target="_blank">Googleドライブで見る</a>`;
+      } catch (err) {
+        statusEl.textContent = "通信エラーが発生しました: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
