@@ -41,21 +41,33 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000).unref();
 
+function combineDateTime(item) {
+  if (!item.visitDate) return item.date || "";
+  let display = item.visitDate;
+  if (item.startTime) {
+    display += ` ${item.startTime}`;
+    if (item.endTime) display += `〜${item.endTime}`;
+  }
+  return display;
+}
+
 function normalizeItems(rawItems) {
   if (!rawItems) return [];
   const list = Array.isArray(rawItems) ? rawItems : Object.values(rawItems);
-  return list.filter((item) => {
-    if (!item) return false;
-    const hasText = item.date || item.detail;
-    const hasAmount = ["fare", "equipment", "care", "etc", "discount"].some((k) => Number(item[k]) > 0);
-    return hasText || hasAmount;
-  });
+  return list
+    .map((item) => (item ? { ...item, date: combineDateTime(item) } : item))
+    .filter((item) => {
+      if (!item) return false;
+      const hasText = item.date || item.detail;
+      const hasAmount = ["fare", "equipment", "care", "etc", "discount"].some((k) => Number(item[k]) > 0);
+      return hasText || hasAmount;
+    });
 }
 
 app.post("/generate", async (req, res) => {
   try {
     const body = req.body;
-    if (!["invoice", "quote"].includes(body.type)) {
+    if (!["invoice", "quote", "receipt"].includes(body.type)) {
       return res.status(400).json({ ok: false, error: "typeが不正です" });
     }
     if (!body.customerName) {
@@ -73,12 +85,13 @@ app.post("/generate", async (req, res) => {
       issueDate: body.issueDate,
       dueDate: body.type === "invoice" ? body.dueDate || "" : "",
       validUntil: body.type === "quote" ? body.dueDate || "" : "",
+      description: body.type === "receipt" ? body.description || "" : "",
       items,
       note: body.note || "",
     };
 
     const safeCustomer = payload.customerName.replace(/[\\/:*?"<>|]/g, "_");
-    const typeLabel = payload.type === "invoice" ? "請求書" : "見積書";
+    const typeLabel = { invoice: "請求書", quote: "見積書", receipt: "領収書" }[payload.type];
 
     const { docNumber, fileName, pdfBuffer, driveLink } = await generateAndUpload({
       type: payload.type,

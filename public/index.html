@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>楓Care taxi 請求書・見積書作成</title>
+<title>楓Care taxi 請求書・見積書・領収書作成</title>
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
@@ -13,7 +13,7 @@
   fieldset { border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; background: #fff; }
   legend { font-size: 13px; color: #666; padding: 0 4px; }
   label { display: block; font-size: 13px; color: #444; margin: 8px 0 4px; }
-  input[type=text], input[type=date], input[type=number], textarea {
+  input[type=text], input[type=date], input[type=time], input[type=number], textarea {
     width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px;
   }
   .type-toggle { display: flex; gap: 8px; }
@@ -32,13 +32,14 @@
 </style>
 </head>
 <body>
-  <h1>楓Care taxi 請求書・見積書作成</h1>
+  <h1>楓Care taxi 請求書・見積書・領収書作成</h1>
   <form id="invoice-form">
     <fieldset>
       <legend>種類</legend>
       <div class="type-toggle">
         <label><input type="radio" name="type" value="invoice" checked><span>請求書</span></label>
         <label><input type="radio" name="type" value="quote"><span>見積書</span></label>
+        <label><input type="radio" name="type" value="receipt"><span>領収書</span></label>
       </div>
     </fieldset>
 
@@ -54,8 +55,16 @@
       <legend>日付</legend>
       <label>発行日</label>
       <input type="date" name="issueDate" id="issueDate" required>
-      <label id="dueDateLabel">お支払期限(任意)</label>
-      <input type="date" name="dueDate" id="dueDate">
+      <div id="dueDateGroup">
+        <label id="dueDateLabel">お支払期限(任意)</label>
+        <input type="date" name="dueDate" id="dueDate">
+      </div>
+    </fieldset>
+
+    <fieldset id="descriptionGroup" style="display:none;">
+      <legend>但し書き</legend>
+      <label>領収の内容</label>
+      <input type="text" name="description" id="description" placeholder="介護タクシー利用料として">
     </fieldset>
 
     <fieldset>
@@ -76,8 +85,12 @@
   <template id="item-template">
     <div class="item-row">
       <button type="button" class="remove-row">×</button>
-      <label>ご利用日時</label>
-      <input type="text" name="items[__IDX__][date]" placeholder="例: 2026-07-10 9:00〜10:30">
+      <label>ご利用日</label>
+      <input type="date" name="items[__IDX__][visitDate]">
+      <div class="grid2">
+        <div><label>開始時刻(任意)</label><input type="time" name="items[__IDX__][startTime]"></div>
+        <div><label>終了時刻(任意)</label><input type="time" name="items[__IDX__][endTime]"></div>
+      </div>
       <label>詳細</label>
       <input type="text" name="items[__IDX__][detail]" placeholder="例: 自宅→〇〇病院 通院送迎">
       <div class="grid2">
@@ -96,6 +109,8 @@
     const template = document.getElementById("item-template");
     let idx = 0;
 
+    const today = new Date().toISOString().slice(0, 10);
+
     function addRow() {
       const html = template.innerHTML.replaceAll("__IDX__", String(idx));
       const wrapper = document.createElement("div");
@@ -104,6 +119,7 @@
       row.querySelector(".remove-row").addEventListener("click", () => {
         if (itemsContainer.children.length > 1) row.remove();
       });
+      row.querySelector('input[type="date"]').value = today;
       itemsContainer.appendChild(row);
       idx++;
     }
@@ -111,14 +127,17 @@
     document.getElementById("add-row").addEventListener("click", addRow);
     addRow();
 
-    const today = new Date().toISOString().slice(0, 10);
     document.getElementById("issueDate").value = today;
 
     const typeRadios = document.querySelectorAll('input[name="type"]');
     const dueDateLabel = document.getElementById("dueDateLabel");
+    const dueDateGroup = document.getElementById("dueDateGroup");
+    const descriptionGroup = document.getElementById("descriptionGroup");
     function syncLabel() {
       const type = document.querySelector('input[name="type"]:checked').value;
+      dueDateGroup.style.display = type === "receipt" ? "none" : "";
       dueDateLabel.textContent = type === "invoice" ? "お支払期限(任意)" : "見積有効期限(任意)";
+      descriptionGroup.style.display = type === "receipt" ? "" : "none";
     }
     typeRadios.forEach((r) => r.addEventListener("change", syncLabel));
     syncLabel();
