@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>設定 - 楓Care taxi 請求書作成</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Yu Gothic", sans-serif; margin: 0; padding: 16px 16px 80px; background: #f6f6f4; color: #222; }
+  h1 { font-size: 18px; margin: 4px 0 4px; }
+  .back-link { display: inline-block; font-size: 13px; color: #666; margin-bottom: 12px; }
+  form { display: flex; flex-direction: column; gap: 14px; }
+  fieldset { border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; background: #fff; }
+  legend { font-size: 13px; color: #666; padding: 0 4px; }
+  label { display: block; font-size: 13px; color: #444; margin: 8px 0 4px; }
+  input[type=text], input[type=email] {
+    width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px;
+  }
+  input[type=file] { width: 100%; font-size: 14px; }
+  .preview { margin-top: 8px; font-size: 12px; color: #666; }
+  .preview img { display: block; max-width: 120px; max-height: 120px; margin-top: 6px; border: 1px solid #eee; }
+  .submit-btn { padding: 12px; font-size: 15px; border-radius: 8px; border: none; background: #d98c1f; color: #fff; font-weight: bold; }
+  #status { font-size: 14px; margin-top: 10px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+  <a class="back-link" href="/">← 請求書作成に戻る</a>
+  <h1>設定(会社情報・振込先)</h1>
+  <form id="settings-form">
+    <fieldset>
+      <legend>会社情報</legend>
+      <label>会社名</label>
+      <input type="text" id="company_name" required>
+      <label>代表者名(任意)</label>
+      <input type="text" id="company_representative">
+      <label>郵便番号(ハイフンなし可)</label>
+      <input type="text" id="company_postalCode">
+      <label>住所</label>
+      <input type="text" id="company_address">
+      <label>電話番号</label>
+      <input type="text" id="company_tel">
+      <label>メールアドレス</label>
+      <input type="email" id="company_email">
+      <label>適格請求書発行事業者の登録番号(任意)</label>
+      <input type="text" id="company_invoiceRegistrationNumber" placeholder="未登録の場合は空欄のまま">
+    </fieldset>
+
+    <fieldset>
+      <legend>お振込先</legend>
+      <label>金融機関名</label>
+      <input type="text" id="bank_bankName">
+      <label>支店名</label>
+      <input type="text" id="bank_branchName">
+      <label>口座種別</label>
+      <input type="text" id="bank_accountType" placeholder="普通 など">
+      <label>口座番号</label>
+      <input type="text" id="bank_accountNumber">
+      <label>口座名義</label>
+      <input type="text" id="bank_accountHolder">
+    </fieldset>
+
+    <fieldset>
+      <legend>ロゴ画像(任意・変更する場合のみ選択)</legend>
+      <input type="file" id="logoFile" accept="image/png,image/jpeg">
+      <div class="preview" id="logoPreview">現在: 初期ロゴ画像を使用中</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>判子画像(任意・変更する場合のみ選択)</legend>
+      <input type="file" id="hankoFile" accept="image/png,image/jpeg">
+      <div class="preview" id="hankoPreview">現在: 初期判子画像を使用中</div>
+    </fieldset>
+
+    <button type="submit" class="submit-btn">保存する</button>
+    <div id="status"></div>
+  </form>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const fields = [
+      ["company_name", "company", "name"],
+      ["company_representative", "company", "representative"],
+      ["company_postalCode", "company", "postalCode"],
+      ["company_address", "company", "address"],
+      ["company_tel", "company", "tel"],
+      ["company_email", "company", "email"],
+      ["company_invoiceRegistrationNumber", "company", "invoiceRegistrationNumber"],
+      ["bank_bankName", "bank", "bankName"],
+      ["bank_branchName", "bank", "branchName"],
+      ["bank_accountType", "bank", "accountType"],
+      ["bank_accountNumber", "bank", "accountNumber"],
+      ["bank_accountHolder", "bank", "accountHolder"],
+    ];
+
+    let newLogoDataUri;
+    let newHankoDataUri;
+
+    function fileToDataUri(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function showPreview(el, dataUri, fallbackText) {
+      el.innerHTML = "";
+      if (dataUri) {
+        const img = document.createElement("img");
+        img.src = dataUri;
+        el.appendChild(img);
+      } else {
+        el.textContent = fallbackText;
+      }
+    }
+
+    $("logoFile").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      newLogoDataUri = await fileToDataUri(file);
+      showPreview($("logoPreview"), newLogoDataUri, "現在: 初期ロゴ画像を使用中");
+    });
+    $("hankoFile").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      newHankoDataUri = await fileToDataUri(file);
+      showPreview($("hankoPreview"), newHankoDataUri, "現在: 初期判子画像を使用中");
+    });
+
+    async function load() {
+      const res = await fetch("/api/settings");
+      const data = await res.json();
+      if (!data.ok) return;
+      const s = data.settings;
+      fields.forEach(([id, group, key]) => {
+        $(id).value = (s[group] && s[group][key]) || "";
+      });
+      showPreview($("logoPreview"), s.logoDataUri, "現在: 初期ロゴ画像を使用中");
+      showPreview($("hankoPreview"), s.hankoDataUri, "現在: 初期判子画像を使用中");
+    }
+    load();
+
+    $("settings-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const statusEl = $("status");
+      statusEl.textContent = "保存中です...";
+      const payload = { company: {}, bank: {} };
+      fields.forEach(([id, group, key]) => {
+        payload[group][key] = $(id).value;
+      });
+      if (newLogoDataUri) payload.logoDataUri = newLogoDataUri;
+      if (newHankoDataUri) payload.hankoDataUri = newHankoDataUri;
+
+      try {
+        const res = await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          statusEl.textContent = "エラー: " + data.error;
+          return;
+        }
+        statusEl.textContent = "保存しました。";
+      } catch (err) {
+        statusEl.textContent = "通信エラーが発生しました: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>

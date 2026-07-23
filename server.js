@@ -6,6 +6,7 @@ const basicAuth = require("express-basic-auth");
 const { renderHtml } = require("./lib/template");
 const { htmlToPdfBuffer } = require("./lib/pdf");
 const { generateAndUpload } = require("./lib/drive");
+const { getSettings, saveSettings } = require("./lib/settingsStore");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +20,7 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "6mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 // PDFはディスクに残さず、短時間だけメモリに保持してiPhoneからのダウンロードに使う。
@@ -92,17 +94,44 @@ app.post("/generate", async (req, res) => {
 
     const safeCustomer = payload.customerName.replace(/[\\/:*?"<>|]/g, "_");
     const typeLabel = { invoice: "請求書", quote: "見積書", receipt: "領収書" }[payload.type];
+    const settings = await getSettings();
 
     const { docNumber, fileName, pdfBuffer, driveLink } = await generateAndUpload({
       type: payload.type,
       issueDate: payload.issueDate,
       fileNameFor: (docNumber) => `${typeLabel}_${docNumber}_${safeCustomer}.pdf`,
-      pdfBuilder: async (docNumber) => htmlToPdfBuffer(renderHtml(payload, docNumber)),
+      pdfBuilder: async (docNumber) => htmlToPdfBuffer(renderHtml(payload, docNumber, settings)),
     });
 
     const pdfId = cachePdf(fileName, pdfBuffer);
 
     res.json({ ok: true, docNumber, driveLink, pdfUrl: `/pdf/${pdfId}` });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get("/api/settings", async (req, res) => {
+  try {
+    const settings = await getSettings();
+    res.json({ ok: true, settings });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post("/api/settings", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const settings = await saveSettings({
+      company: body.company || {},
+      bank: body.bank || {},
+      logoDataUri: body.logoDataUri,
+      hankoDataUri: body.hankoDataUri,
+    });
+    res.json({ ok: true, settings });
   } catch (e) {
     console.error(e);
     res.status(500).json({ ok: false, error: e.message });
