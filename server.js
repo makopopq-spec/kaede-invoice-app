@@ -96,7 +96,7 @@ app.post("/generate", async (req, res) => {
     const typeLabel = { invoice: "請求書", quote: "見積書", receipt: "領収書" }[payload.type];
     const settings = await getSettings();
 
-    const { docNumber, fileName, pdfBuffer, driveLink } = await generateAndUpload({
+    const { docNumber, fileName, pdfBuffer, driveLink, driveError } = await generateAndUpload({
       type: payload.type,
       issueDate: payload.issueDate,
       fileNameFor: (docNumber) => `${typeLabel}_${docNumber}_${safeCustomer}.pdf`,
@@ -105,7 +105,9 @@ app.post("/generate", async (req, res) => {
 
     const pdfId = cachePdf(fileName, pdfBuffer);
 
-    res.json({ ok: true, docNumber, driveLink, pdfUrl: `/pdf/${pdfId}` });
+    // DriveへのアップロードはベストエフォートなのでPDFさえ作れていればok:trueを返す。
+    // driveErrorがある場合は画面側で警告を出しつつPDFリンクは必ず案内する。
+    res.json({ ok: true, docNumber, driveLink, driveError, pdfUrl: `/pdf/${pdfId}` });
   } catch (e) {
     console.error(e);
     res.status(500).json({ ok: false, error: e.message });

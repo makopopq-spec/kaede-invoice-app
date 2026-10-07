@@ -92,7 +92,7 @@
       <span class="amount" id="liveTotal">¥0</span>
     </div>
 
-    <button type="submit" class="submit-btn">作成してDriveに保存</button>
+    <button type="submit" class="submit-btn">PDFを作成する</button>
     <div id="status"></div>
   </form>
 
@@ -188,10 +188,21 @@
           statusEl.textContent = "エラー: " + data.error;
           return;
         }
-        statusEl.innerHTML =
-          `作成しました(書類番号: ${data.docNumber})<br>` +
-          `<a href="${data.pdfUrl}" target="_blank">PDFを開く/ダウンロード</a><br>` +
-          `<a href="${data.driveLink}" target="_blank">Googleドライブで見る</a>`;
+        const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+        })[c]);
+        let html =
+          `作成しました(書類番号: ${esc(data.docNumber)})<br>` +
+          `<a href="${data.pdfUrl}" target="_blank">PDFを開く/ダウンロード</a>`;
+        if (data.driveLink) {
+          html += `<br><a href="${data.driveLink}" target="_blank">Googleドライブで見る</a>`;
+        } else {
+          html +=
+            `<br><span style="color:#b94a1f;">⚠ Googleドライブへの自動保存に失敗しました` +
+            (data.driveError ? `(${esc(data.driveError)})` : "") +
+            `。上の「PDFを開く/ダウンロード」からPDFを開き、共有メニューの「ファイルに保存」などでご利用ください。</span>`;
+        }
+        statusEl.innerHTML = html;
       } catch (err) {
         statusEl.textContent = "通信エラーが発生しました: " + err.message;
       }
