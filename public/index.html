@@ -113,6 +113,8 @@
         <div><label>介助料</label><input type="number" name="items[__IDX__][care]" inputmode="numeric"></div>
         <div><label>ETC料金</label><input type="number" name="items[__IDX__][etc]" inputmode="numeric"></div>
       </div>
+      <label>その他費用(あれば)</label>
+      <input type="number" name="items[__IDX__][other]" inputmode="numeric">
       <label>割引額(あれば)</label>
       <input type="number" name="items[__IDX__][discount]" inputmode="numeric">
     </div>
@@ -130,7 +132,7 @@
       let total = 0;
       itemsContainer.querySelectorAll(".item-row").forEach((row) => {
         const num = (name) => Number(row.querySelector(`input[name$="[${name}]"]`)?.value) || 0;
-        total += num("fare") + num("equipment") + num("care") + num("etc") - num("discount");
+        total += num("fare") + num("equipment") + num("care") + num("etc") + num("other") - num("discount");
       });
       liveTotalEl.textContent = "¥" + total.toLocaleString("ja-JP");
     }

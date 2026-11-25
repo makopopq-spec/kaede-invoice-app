@@ -61,7 +61,7 @@ function normalizeItems(rawItems) {
     .filter((item) => {
       if (!item) return false;
       const hasText = item.date || item.detail;
-      const hasAmount = ["fare", "equipment", "care", "etc", "discount"].some((k) => Number(item[k]) > 0);
+      const hasAmount = ["fare", "equipment", "care", "etc", "other", "discount"].some((k) => Number(item[k]) > 0);
       return hasText || hasAmount;
     });
 }
